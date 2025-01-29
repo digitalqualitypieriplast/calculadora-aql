@@ -1,0 +1,348 @@
+import React, { useState } from 'react';
+
+const AQLCalculator = () => {
+  const [lotSize, setLotSize] = useState('');
+  const [inspectionLevel, setInspectionLevel] = useState('II');
+  const [defectType, setDefectType] = useState('critical');
+  const [error, setError] = useState('');
+  const [showResults, setShowResults] = useState(false);
+  const [results, setResults] = useState({
+    codeLetter: '',
+    sampleSize: '',
+    acceptanceNumber: '',
+    rejectionNumber: '',
+    defectAQL: ''
+  });
+
+  // Tabla I-A - Letras código según tamaño de lote (con S-4 corregido)
+  const CODE_LETTERS = {
+    'S-3': {
+      '2-8': 'A',
+      '9-15': 'A',
+      '16-25': 'B',
+      '26-50': 'B',
+      '51-90': 'C',
+      '91-150': 'C',
+      '151-280': 'D',
+      '281-500': 'D',
+      '501-1200': 'E',
+      '1201-3200': 'E',
+      '3201-10000': 'F',
+      '10001-35000': 'F',
+      '35001-150000': 'G',
+      '150001-500000': 'G',
+      '500001-más': 'H'
+    },
+    'S-4': {
+      '2-8': 'A',
+      '9-15': 'A',
+      '16-25': 'B',
+      '26-50': 'C',
+      '51-90': 'C',
+      '91-150': 'D',
+      '151-280': 'E',
+      '281-500': 'E',
+      '501-1200': 'F',
+      '1201-3200': 'G',
+      '3201-10000': 'G',
+      '10001-35000': 'H',
+      '35001-150000': 'J',
+      '150001-500000': 'J',
+      '500001-más': 'K'
+    },
+    'II': {
+      '2-8': 'A',
+      '9-15': 'B',
+      '16-25': 'C',
+      '26-50': 'D',
+      '51-90': 'E',
+      '91-150': 'F',
+      '151-280': 'G',
+      '281-500': 'H',
+      '501-1200': 'J',
+      '1201-3200': 'K',
+      '3201-10000': 'L',
+      '10001-35000': 'M',
+      '35001-150000': 'N',
+      '150001-500000': 'P',
+      '500001-más': 'Q'
+    }
+  };
+
+  // Tamaños de muestra según letra código
+  const SAMPLE_SIZES = {
+    'A': 2,
+    'B': 3,
+    'C': 5,
+    'D': 8,
+    'E': 13,
+    'F': 20,
+    'G': 32,
+    'H': 50,
+    'J': 80,
+    'K': 125,
+    'L': 200,
+    'M': 315,
+    'N': 500,
+    'P': 800,
+    'Q': 1250
+  };
+
+  // Tablas de aceptación/rechazo por nivel
+  const ACCEPTANCE_REJECTION = {
+    'S-3': {
+      critical: {
+        'A': [0, 1],
+        'B': [0, 1],
+        'C': [0, 1],
+        'D': [0, 1],
+        'E': [0, 1],
+        'F': [0, 1],
+        'G': [1, 2],
+        'H': [1, 2]
+      },
+      major: {
+        'A': [0, 1],
+        'B': [0, 1],
+        'C': [0, 1],
+        'D': [0, 1],
+        'E': [1, 2],
+        'F': [1, 2],
+        'G': [2, 3],
+        'H': [2, 3]
+      },
+      minor: {
+        'A': [0, 1],
+        'B': [0, 1],
+        'C': [1, 2],
+        'D': [1, 2],
+        'E': [2, 3],
+        'F': [2, 3],
+        'G': [3, 4],
+        'H': [4, 5]
+      }
+    },
+    'S-4': {
+      critical: {
+        'A': [0, 1],
+        'B': [0, 1],
+        'C': [0, 1],
+        'D': [0, 1],
+        'E': [0, 1],
+        'F': [0, 1],
+        'G': [1, 2],
+        'H': [1, 2],
+        'J': [2, 3],
+        'K': [2, 3]
+      },
+      major: {
+        'A': [0, 1],
+        'B': [0, 1],
+        'C': [0, 1],
+        'D': [1, 2],
+        'E': [1, 2],
+        'F': [1, 2],
+        'G': [2, 3],
+        'H': [2, 3],
+        'J': [3, 4],
+        'K': [3, 4]
+      },
+      minor: {
+        'A': [0, 1],
+        'B': [0, 1],
+        'C': [1, 2],
+        'D': [1, 2],
+        'E': [2, 3],
+        'F': [2, 3],
+        'G': [3, 4],
+        'H': [4, 5],
+        'J': [5, 6],
+        'K': [6, 7]
+      }
+    },
+    'II': {
+      critical: {
+        'A': [0, 1],
+        'B': [0, 1],
+        'C': [0, 1],
+        'D': [0, 1],
+        'E': [0, 1],
+        'F': [1, 2],
+        'G': [1, 2],
+        'H': [2, 3],
+        'J': [3, 4],
+        'K': [4, 5],
+        'L': [6, 7],
+        'M': [8, 9],
+        'N': [10, 11],
+        'P': [12, 13],
+        'Q': [15, 16]
+      },
+      major: {
+        'A': [0, 1],
+        'B': [0, 1],
+        'C': [0, 1],
+        'D': [1, 2],
+        'E': [1, 2],
+        'F': [2, 3],
+        'G': [2, 3],
+        'H': [3, 4],
+        'J': [4, 5],
+        'K': [6, 7],
+        'L': [8, 9],
+        'M': [10, 11],
+        'N': [12, 13],
+        'P': [15, 16],
+        'Q': [18, 19]
+      },
+      minor: {
+        'A': [0, 1],
+        'B': [0, 1],
+        'C': [1, 2],
+        'D': [1, 2],
+        'E': [2, 3],
+        'F': [3, 4],
+        'G': [4, 5],
+        'H': [6, 7],
+        'J': [8, 9],
+        'K': [10, 11],
+        'L': [14, 15],
+        'M': [18, 19],
+        'N': [22, 23],
+        'P': [28, 29],
+        'Q': [34, 35]
+      }
+    }
+  };
+
+  const getCodeLetter = (size, level) => {
+    const ranges = CODE_LETTERS[level];
+    for (const [range, letter] of Object.entries(ranges)) {
+      const [min, max] = range.split('-');
+      const minVal = parseInt(min);
+      const maxVal = max === 'más' ? Infinity : parseInt(max);
+      if (size >= minVal && size <= maxVal) {
+        return letter;
+      }
+    }
+    return null;
+  };
+
+  const calculateAQL = () => {
+    setError('');
+    setShowResults(false);
+
+    if (!lotSize) {
+      setError('Por favor, ingrese el tamaño del lote');
+      return;
+    }
+
+    const size = parseInt(lotSize);
+    if (size < 2) {
+      setError('El tamaño del lote debe ser mayor a 1');
+      return;
+    }
+
+    const codeLetter = getCodeLetter(size, inspectionLevel);
+    if (!codeLetter) {
+      setError('Tamaño de lote fuera de rango');
+      return;
+    }
+
+    const sampleSize = SAMPLE_SIZES[codeLetter];
+    const [acceptanceNumber, rejectionNumber] = 
+      ACCEPTANCE_REJECTION[inspectionLevel][defectType][codeLetter] || [0, 1];
+
+    setResults({
+      codeLetter,
+      sampleSize,
+      acceptanceNumber,
+      rejectionNumber,
+      defectAQL: {
+        critical: '0.65',
+        major: '1.5',
+        minor: '4.0'
+      }[defectType]
+    });
+
+    setShowResults(true);
+  };
+
+  return (
+    <div className="max-w-xl mx-auto p-6">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="text-center mb-6">
+          <div className="text-2xl font-bold mb-2">
+            <span className="text-[#8B1E3F]">AMFORA</span>
+            <span className="text-black"> PACKAGING</span>
+          </div>
+          <div className="text-[#8B1E3F] text-xl">Calculadora AQL NTP ISO 2859</div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block font-bold mb-1">Tamaño del Lote</label>
+            <input
+              type="number"
+              min="2"
+              value={lotSize}
+              onChange={(e) => setLotSize(e.target.value)}
+              className="w-full p-2 border border-[#8B1E3F] rounded"
+              placeholder="Ingrese el tamaño del lote"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold mb-1">Nivel de Inspección</label>
+            <select
+              value={inspectionLevel}
+              onChange={(e) => setInspectionLevel(e.target.value)}
+              className="w-full p-2 border border-[#8B1E3F] rounded"
+            >
+              <option value="II">Nivel II (Normal)</option>
+              <option value="S-3">Nivel S-3 (Destructivo)</option>
+              <option value="S-4">Nivel S-4 (No Destructivo)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-bold mb-1">Tipo de Defecto</label>
+            <select
+              value={defectType}
+              onChange={(e) => setDefectType(e.target.value)}
+              className="w-full p-2 border border-[#8B1E3F] rounded"
+            >
+              <option value="critical">Crítico (AQL 0.65)</option>
+              <option value="major">Mayor (AQL 1.5)</option>
+              <option value="minor">Menor (AQL 4.0)</option>
+            </select>
+          </div>
+
+          <button
+            onClick={calculateAQL}
+            className="w-full py-3 px-4 bg-[#8B1E3F] text-white text-lg font-bold rounded-lg shadow-lg hover:bg-[#6B1730] active:transform active:scale-95 transition-all uppercase tracking-wider"
+          >
+            CALCULAR
+          </button>
+
+          {error && (
+            <div className="text-red-500 mt-4">{error}</div>
+          )}
+
+          {showResults && (
+            <div className="mt-4 p-4 bg-gray-50 border border-[#8B1E3F] rounded">
+              <h3 className="text-[#8B1E3F] font-bold mb-2">Resultados:</h3>
+              <p>Letra código: <span className="font-bold">{results.codeLetter}</span></p>
+              <p>Tamaño de muestra: <span className="font-bold">{results.sampleSize}</span></p>
+              <p>AQL: <span className="font-bold">{results.defectAQL}</span></p>
+              <p>Número de aceptación (Ac): <span className="font-bold">{results.acceptanceNumber}</span></p>
+              <p>Número de rechazo (Re): <span className="font-bold">{results.rejectionNumber}</span></p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AQLCalculator;
